@@ -1,0 +1,20 @@
+name: 'Deploy'
+run-name: 'Deploy'
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: 'Deploy'
+    uses: teddybeermaniac/GitHub.Workflows/.github/workflows/caprover-deploy-dockerfile.yml@master
+    with:
+      application: '${{ vars.CAPROVER_APPLICATION }}'
+    secrets:
+      host: '${{ secrets.CAPROVER_HOST }}'
+      token: '${{ secrets.CAPROVER_TOKEN }}'
