@@ -33,6 +33,14 @@ on:
         description: 'Application token'
         required: true
 
+      header_name:
+        description: 'Additional header name'
+        required: false
+
+      header_value:
+        description: 'Additional header value'
+        required: false
+
 jobs:
   build:
     name: 'Build'
@@ -83,3 +91,5 @@ jobs:
     secrets:
       host: '${{ secrets.host }}'
       token: '${{ secrets.token }}'
+      header_name: '${{ secrets.header_name }}'
+      header_value: '${{ secrets.header_value }}'

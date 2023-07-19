@@ -24,6 +24,14 @@ on:
         description: 'Application token'
         required: true
 
+      header_name:
+        description: 'Additional header name'
+        required: false
+
+      header_value:
+        description: 'Additional header value'
+        required: false
+
 jobs:
   deploy:
     name: 'Deploy'
@@ -31,11 +39,40 @@ jobs:
 
     steps:
       - name: 'Deploy ${{ inputs.image }} image as ${{ inputs.application }} application to CapRover'
-        uses: docker://caprover/cli-caprover:2.2.3
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          handler = urllib.request.HTTPSHandler(debuglevel=1)
+          opener = urllib.request.build_opener(handler)
+
+          url = f'https://captain.{os.environ["SECRET_HOST"]}/api/v2/user/apps/appData/{urllib.parse.quote_plus(os.environ["INPUT_APPLICATION"])}?detached=1'
+          data = json.dumps({
+            'captainDefinitionContent': json.dumps({
+              'schemaVersion': 2,
+              'imageName': os.environ['INPUT_IMAGE']
+            }),
+            'gitHash': ''
+          }).encode()
+          headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Captain-App-Token': os.environ['SECRET_TOKEN'],
+            'X-Namespace': 'captain'
+          }
+          if os.environ.get('SECRET_HEADER_NAME') and os.environ.get('SECRET_HEADER_VALUE'):
+            headers |= { os.environ['SECRET_HEADER_NAME']: os.environ['SECRET_HEADER_VALUE'] }
+
+          request = urllib.request.Request(url, data, headers)
+          response = opener.open(request)
+          print(response.read().decode())
         env:
-          CAPROVER_APP: '${{ inputs.application }}'
-          CAPROVER_APP_TOKEN: '${{ secrets.token }}'
-          CAPROVER_IMAGE_NAME: '${{ inputs.image }}'
-          CAPROVER_URL: '${{ secrets.host }}'
-        with:
-          args: 'caprover deploy'
+          INPUT_IMAGE: '${{ inputs.image }}'
+          INPUT_APPLICATION: '${{ inputs.application }}'
+          SECRET_HOST: '${{ secrets.host }}'
+          SECRET_TOKEN: '${{ secrets.token }}'
+          SECRET_HEADER_NAME: '${{ secrets.header_name }}'
+          SECRET_HEADER_VALUE: '${{ secrets.header_value }}'
