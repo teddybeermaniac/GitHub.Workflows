@@ -17,3 +17,5 @@ jobs:
     secrets:
       host: '${{ secrets.CAPROVER_HOST }}'
       token: '${{ secrets.CAPROVER_TOKEN }}'
+      # header_name: '${{ secrets.CAPROVER_HEADER_NAME }}'
+      # header_value: '${{ secrets.CAPROVER_HEADER_VALUE }}'
