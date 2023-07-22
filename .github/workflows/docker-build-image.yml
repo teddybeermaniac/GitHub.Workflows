@@ -1,0 +1,108 @@
+# Builds a Dockerfile and pushes the image to ghcr.io.
+name: 'Docker build image'
+permissions:
+  contents: read
+  packages: write
+
+on:
+  workflow_call:
+    inputs:
+      context:
+        description: 'Path to Docker context (default: .)'
+        type: string
+        required: false
+        default: .
+
+      platforms:
+        description: 'Platforms to build the image for (default: amd64,arm64)'
+        type: string
+        required: false
+        default: amd64,arm64
+
+      image_name:
+        description: 'Image name (default: lowercase repository name)'
+        type: string
+        required: false
+
+    outputs:
+      image:
+        value: '${{ jobs.build.outputs.image }}'
+
+jobs:
+  build:
+    name: 'Build'
+    runs-on: ubuntu-latest
+    outputs:
+      image: '${{ github.ref_type == ''tag'' && env.IMAGE_PATCH || env.IMAGE_COMMIT }}'
+
+    steps:
+      - name: 'Set environment variables'
+        run: |
+          if [[ -z "${INPUT_IMAGE_NAME}" ]]; then
+            IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
+          else
+            IMAGE_NAME="${INPUT_IMAGE_NAME}"
+          fi
+
+          IMAGE_URL="ghcr.io/${GITHUB_REPOSITORY%/*}/$(echo "${IMAGE_NAME}" | tr '[A-Z]' '[a-z]' | sed -E 's/[^a-z0-9._-]/_/g')"
+
+          IMAGE_LATEST="${IMAGE_URL}:latest"
+          TAGS="${IMAGE_LATEST}"
+
+          if [[ "${GITHUB_REF_TYPE}" == branch ]]; then
+            IMAGE_COMMIT="${IMAGE_URL}:${GITHUB_SHA::7}"
+            TAGS="${TAGS},${IMAGE_COMMIT}"
+          fi
+
+          if [[ "${GITHUB_REF_TYPE}" == tag ]]; then
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
+              echo "Invalid tag name ${GITHUB_REF_NAME}, it should match v[0-9]+.[0-9]+.[0-9]+ pattern" >&2
+              exit 1
+            fi
+
+            VERSION_STRING="${GITHUB_REF_NAME/v/}"
+            VERSION=(${VERSION_STRING//./ })
+
+            IMAGE_MAJOR="${IMAGE_URL}:v${VERSION[0]}"
+            IMAGE_MINOR="${IMAGE_URL}:v${VERSION[0]}.${VERSION[1]}"
+            IMAGE_PATCH="${IMAGE_URL}:v${VERSION[0]}.${VERSION[1]}.${VERSION[2]}"
+            TAGS="${TAGS},${IMAGE_MAJOR},${IMAGE_MINOR},${IMAGE_PATCH}"
+          fi
+
+          printf 'IMAGE_URL=%s\nIMAGE_LATEST=%s\nIMAGE_COMMIT=%s\nIMAGE_MAJOR=%s\nIMAGE_MINOR=%s\nIMAGE_PATCH=%s\nTAGS=%s\n' \
+            "${IMAGE_URL}" "${IMAGE_LATEST}" "${IMAGE_COMMIT}" "${IMAGE_MAJOR}" "${IMAGE_MINOR}" "${IMAGE_PATCH}" "${TAGS}" >> "${GITHUB_ENV}"
+        env:
+          INPUT_IMAGE_NAME: '${{ inputs.image_name }}'
+
+      - name: 'Checkout ${{ inputs.repository }} repository'
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: 'Login to ghcr.io'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: '${{ github.actor }}'
+          password: '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: 'Setup Buildx'
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: '${{ inputs.platforms }}'
+
+      - name: 'Set up QEMU for ${{ inputs.platforms }} platforms'
+        if: '${{ inputs.platforms != ''amd64'' }}'
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: '${{ inputs.platforms }}'
+
+      - name: 'Build and push ${{ env.IMAGE_URL }} image'
+        uses: docker/build-push-action@v4
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: '${{ inputs.context }}'
+          platforms: '${{ inputs.platforms }}'
+          push: true
+          tags: '${{ env.TAGS }}'
