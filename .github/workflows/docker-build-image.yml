@@ -72,6 +72,14 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }},priority=9995
             type=raw,value=edge,enable=${{ github.ref == format('refs/heads/{0}', 'develop') }},priority=9994
 
+      - name: 'Set IMAGE_NAME environment variable'
+        run: |
+          IMAGE_NAME="${IMAGE_TAG/:*/}"
+
+          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${GITHUB_ENV}"
+        env:
+          IMAGE_TAG: '${{ fromJSON(steps.metadata.outputs.json).tags[0] }}'
+
       - name: 'Checkout ${{ inputs.repository }} repository'
         uses: actions/checkout@v3
         with:
@@ -95,7 +103,7 @@ jobs:
         with:
           platforms: '${{ inputs.platforms }}'
 
-      - name: 'Build and push ${{ env.IMAGE_URL }} image'
+      - name: 'Build ${{ github.event_name != ''pull_request'' && ''and push '' || '''' }}${{ env.IMAGE_NAME }} image'
         uses: docker/build-push-action@v4
         with:
           cache-from: type=gha
