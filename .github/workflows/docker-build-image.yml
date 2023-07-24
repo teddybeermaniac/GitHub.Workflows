@@ -13,6 +13,11 @@ on:
         required: false
         default: .
 
+      authors:
+        description: 'Author contact information to be embedded in labels'
+        type: string
+        required: true
+
       platforms:
         description: 'Platforms to build the image for (default: amd64,arm64)'
         type: string
@@ -33,46 +38,47 @@ jobs:
     name: 'Build'
     runs-on: ubuntu-latest
     outputs:
-      image: '${{ github.ref_type == ''tag'' && env.IMAGE_PATCH || env.IMAGE_COMMIT }}'
+      image: '${{ fromJSON(steps.metadata.outputs.json).tags[0] }}'
 
     steps:
-      - name: 'Set environment variables'
+      - name: 'Set IMAGE_URL environment variable'
         run: |
           if [[ -z "${INPUT_IMAGE_NAME}" ]]; then
             IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
           else
             IMAGE_NAME="${INPUT_IMAGE_NAME}"
           fi
+          IMAGE_URL="ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}"
 
-          IMAGE_URL="ghcr.io/${GITHUB_REPOSITORY%/*}/$(echo "${IMAGE_NAME}" | tr '[A-Z]' '[a-z]' | sed -E 's/[^a-z0-9._-]/_/g')"
-
-          IMAGE_LATEST="${IMAGE_URL}:latest"
-          TAGS="${IMAGE_LATEST}"
-
-          if [[ "${GITHUB_REF_TYPE}" == branch ]]; then
-            IMAGE_COMMIT="${IMAGE_URL}:${GITHUB_SHA::7}"
-            TAGS="${TAGS},${IMAGE_COMMIT}"
-          fi
-
-          if [[ "${GITHUB_REF_TYPE}" == tag ]]; then
-            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
-              echo "Invalid tag name ${GITHUB_REF_NAME}, it should match v[0-9]+.[0-9]+.[0-9]+ pattern" >&2
-              exit 1
-            fi
-
-            VERSION_STRING="${GITHUB_REF_NAME/v/}"
-            VERSION=(${VERSION_STRING//./ })
-
-            IMAGE_MAJOR="${IMAGE_URL}:v${VERSION[0]}"
-            IMAGE_MINOR="${IMAGE_URL}:v${VERSION[0]}.${VERSION[1]}"
-            IMAGE_PATCH="${IMAGE_URL}:v${VERSION[0]}.${VERSION[1]}.${VERSION[2]}"
-            TAGS="${TAGS},${IMAGE_MAJOR},${IMAGE_MINOR},${IMAGE_PATCH}"
-          fi
-
-          printf 'IMAGE_URL=%s\nIMAGE_LATEST=%s\nIMAGE_COMMIT=%s\nIMAGE_MAJOR=%s\nIMAGE_MINOR=%s\nIMAGE_PATCH=%s\nTAGS=%s\n' \
-            "${IMAGE_URL}" "${IMAGE_LATEST}" "${IMAGE_COMMIT}" "${IMAGE_MAJOR}" "${IMAGE_MINOR}" "${IMAGE_PATCH}" "${TAGS}" >> "${GITHUB_ENV}"
+          printf 'IMAGE_URL=%s\n' "${IMAGE_URL}" >> "${GITHUB_ENV}"
         env:
           INPUT_IMAGE_NAME: '${{ inputs.image_name }}'
+
+      - name: 'Populate Docker metadata'
+        id: metadata
+        uses: docker/metadata-action@v4
+        with:
+          images: '${{ env.IMAGE_URL }}'
+          flavor: |
+            latest=false
+          labels: |
+            org.opencontainers.image.authors=${{ inputs.authors }}
+            org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{ major }}.{{ minor }}.{{ patch }},prefix=v,priority=9999
+            type=semver,pattern={{ major }}.{{ minor }},prefix=v,priority=9998
+            type=semver,pattern={{ major }},prefix=v,priority=9997
+            type=sha,prefix=,priority=9996
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }},priority=9995
+            type=raw,value=edge,enable=${{ github.ref == format('refs/heads/{0}', 'develop') }},priority=9994
+
+      - name: 'Set IMAGE_NAME environment variable'
+        run: |
+          IMAGE_NAME="${IMAGE_TAG/:*/}"
+
+          printf 'IMAGE_NAME=%s\n' "${IMAGE_NAME}" >> "${GITHUB_ENV}"
+        env:
+          IMAGE_TAG: '${{ fromJSON(steps.metadata.outputs.json).tags[0] }}'
 
       - name: 'Checkout ${{ inputs.repository }} repository'
         uses: actions/checkout@v3
@@ -97,12 +103,13 @@ jobs:
         with:
           platforms: '${{ inputs.platforms }}'
 
-      - name: 'Build and push ${{ env.IMAGE_URL }} image'
+      - name: 'Build ${{ github.event_name != ''pull_request'' && ''and push '' || '''' }}${{ env.IMAGE_NAME }} image'
         uses: docker/build-push-action@v4
         with:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: '${{ inputs.context }}'
+          labels: '${{ steps.metadata.outputs.labels }}'
+          outputs: 'type=image,name=target,annotation-index.org.opencontainers.image.description=${{ fromJSON(steps.metadata.outputs.json).labels[''org.opencontainers.image.description''] }},push=${{ github.event_name != ''pull_request'' }}'
           platforms: '${{ inputs.platforms }}'
-          push: '${{ github.event_name != ''pull_request'' }}'
-          tags: '${{ env.TAGS }}'
+          tags: '${{ steps.metadata.outputs.tags }}'
