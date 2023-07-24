@@ -11,6 +11,11 @@ on:
     tags:
       - '*'
 
+  pull_request:
+    branches:
+      - develop
+      - master
+
 jobs:
   build:
     name: 'Build'
