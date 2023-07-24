@@ -104,5 +104,5 @@ jobs:
           cache-to: type=gha,mode=max
           context: '${{ inputs.context }}'
           platforms: '${{ inputs.platforms }}'
-          push: '${{ github.event_name != ''pull_request''}}'
+          push: '${{ github.event_name != ''pull_request'' }}'
           tags: '${{ env.TAGS }}'
