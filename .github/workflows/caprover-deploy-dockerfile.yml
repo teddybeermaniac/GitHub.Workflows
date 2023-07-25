@@ -13,6 +13,11 @@ on:
         required: false
         default: .
 
+      file:
+        description: 'Path to the Dockerfile (default: {context}/Dockerfile)'
+        type: string
+        required: false
+
       platforms:
         description: 'Platforms to build the image for (default: amd64)'
         type: string
@@ -52,6 +57,7 @@ jobs:
     uses: ./.github/workflows/docker-build-image.yml
     with:
       context: '${{ inputs.context }}'
+      file: '${{ inputs.file }}'
       platforms: '${{ inputs.platforms }}'
       authors: '${{ inputs.authors }}'
 

@@ -13,6 +13,11 @@ on:
         required: false
         default: .
 
+      file:
+        description: 'Path to the Dockerfile (default: {context}/Dockerfile)'
+        type: string
+        required: false
+
       authors:
         description: 'Author contact information to be embedded in labels'
         type: string
@@ -109,6 +114,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: '${{ inputs.context }}'
+          file: '${{ inputs.file }}'
           labels: '${{ steps.metadata.outputs.labels }}'
           outputs: 'type=image,name=target,annotation-index.org.opencontainers.image.description=${{ fromJSON(steps.metadata.outputs.json).labels[''org.opencontainers.image.description''] }},push=${{ github.event_name != ''pull_request'' }}'
           platforms: '${{ inputs.platforms }}'
