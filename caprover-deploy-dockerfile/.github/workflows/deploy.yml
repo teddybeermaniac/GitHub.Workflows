@@ -1,5 +1,5 @@
-name: 'Deploy'
-run-name: 'Deploy'
+name: Deploy
+run-name: Deploy
 permissions:
   contents: read
   packages: write
@@ -11,12 +11,13 @@ on:
 
 jobs:
   deploy:
-    name: 'Deploy'
+    name: Deploy
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/caprover-deploy-dockerfile.yml@master
     with:
       # context: .
       # platforms: amd64
       application: '${{ vars.CAPROVER_APPLICATION }}'
+      authors: 'John Doe <john.doe@example.com>'
     secrets:
       host: '${{ secrets.CAPROVER_HOST }}'
       token: '${{ secrets.CAPROVER_TOKEN }}'
