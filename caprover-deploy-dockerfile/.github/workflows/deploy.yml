@@ -15,6 +15,7 @@ jobs:
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/caprover-deploy-dockerfile.yml@master
     with:
       # context: .
+      # file:
       # platforms: amd64
       application: '${{ vars.CAPROVER_APPLICATION }}'
       authors: 'John Doe <john.doe@example.com>'
