@@ -1,5 +1,5 @@
-name: 'Build'
-run-name: 'Build'
+name: Build
+run-name: Build
 permissions:
   contents: read
   packages: write
@@ -18,9 +18,10 @@ on:
 
 jobs:
   build:
-    name: 'Build'
+    name: Build
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/docker-build-image.yml@master
-    # with:
+    with:
       # context: .
+      authors: 'John Doe <john.doe@example.com>'
       # platforms: amd64,arm64
       # image_name:
