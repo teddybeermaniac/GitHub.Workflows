@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy
+    name: 'Deploy ${{ github.repository }}'
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/caprover-deploy-image.yml@master
     with:
       image: rancher/hello-world:v0.1.2

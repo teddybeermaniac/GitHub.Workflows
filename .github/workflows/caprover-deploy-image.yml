@@ -17,7 +17,7 @@ on:
 
     secrets:
       host:
-        description: 'URL to CapRover instance'
+        description: 'CapRover instance URL'
         required: true
 
       token:
@@ -34,11 +34,11 @@ on:
 
 jobs:
   deploy:
-    name: 'Deploy'
+    name: 'Deploy ${{ inputs.image }} image to CapRover as ${{ inputs.application }} application'
     runs-on: ubuntu-latest
 
     steps:
-      - name: 'Deploy ${{ inputs.image }} image as ${{ inputs.application }} application to CapRover'
+      - name: Deploy
         shell: python
         run: |
           import json

@@ -6,8 +6,10 @@ permissions:
 
 on:
   push:
-    # branches:
-    #   - master
+    branches:
+      - develop
+      - master
+
     tags:
       - '*'
 
@@ -18,7 +20,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: 'Build ${{ github.repository }}'
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/docker-build-image.yml@master
     with:
       # context: .
