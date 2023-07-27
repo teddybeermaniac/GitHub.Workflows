@@ -14,29 +14,29 @@ on:
         default: .
 
       file:
-        description: 'Path to the Dockerfile (default: {context}/Dockerfile)'
+        description: 'Path to Dockerfile (default: {context}/Dockerfile)'
         type: string
         required: false
 
       platforms:
-        description: 'Platforms to build the image for (default: amd64)'
+        description: 'Platforms to build image for (default: amd64)'
         type: string
         required: false
         default: amd64
+
+      authors:
+        description: 'Author contact information'
+        type: string
+        required: true
 
       application:
         description: 'Application name'
         type: string
         required: true
 
-      authors:
-        description: 'Author contact information to be embedded in labels'
-        type: string
-        required: true
-
     secrets:
       host:
-        description: 'URL to CapRover instance'
+        description: 'CapRover instance URL'
         required: true
 
       token:
@@ -53,7 +53,7 @@ on:
 
 jobs:
   build:
-    name: 'Build'
+    name: Build
     uses: ./.github/workflows/docker-build-image.yml
     with:
       context: '${{ inputs.context }}'
@@ -62,7 +62,7 @@ jobs:
       authors: '${{ inputs.authors }}'
 
   deploy:
-    name: 'Deploy'
+    name: Deploy
     needs: build
     uses: ./.github/workflows/caprover-deploy-image.yml
     with:

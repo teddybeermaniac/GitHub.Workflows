@@ -11,7 +11,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy
+    name: 'Deploy ${{ github.repository }}'
     uses: teddybeermaniac/GitHub.Workflows/.github/workflows/caprover-deploy-dockerfile.yml@master
     with:
       # context: .
