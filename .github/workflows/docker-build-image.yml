@@ -74,7 +74,7 @@ jobs:
             type=semver,pattern={{ major }}.{{ minor }},prefix=v,priority=9998
             type=semver,pattern={{ major }},prefix=v,priority=9997
             type=sha,prefix=,priority=9996
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }},priority=9995
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') || github.ref_type == 'tag' }},priority=9995
             type=raw,value=edge,enable=${{ github.ref == format('refs/heads/{0}', 'develop') }},priority=9994
 
       - name: 'Set IMAGE_NAME and IMAGE_DESCRIPTION_ESCAPED variables'
