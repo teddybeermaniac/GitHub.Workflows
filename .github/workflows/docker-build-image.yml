@@ -130,7 +130,7 @@ jobs:
           tags: '${{ steps.metadata.outputs.tags }}'
 
       - name: 'Delete untagged versions'
-        if: '${{ !inputs.tag_commits }}'
+        if: '${{ !inputs.tag_commits && github.event_name != ''pull_request'' }}'
         uses: actions/github-script@v6
         with:
           script: |
