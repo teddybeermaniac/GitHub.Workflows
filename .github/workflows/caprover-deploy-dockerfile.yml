@@ -60,6 +60,7 @@ jobs:
       file: '${{ inputs.file }}'
       platforms: '${{ inputs.platforms }}'
       authors: '${{ inputs.authors }}'
+      tag_commits: true
 
   deploy:
     name: Deploy

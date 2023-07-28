@@ -34,6 +34,12 @@ on:
         type: string
         required: false
 
+      tag_commits:
+        description: 'Create tags with commit SHA (default: false)'
+        type: boolean
+        required: false
+        default: false
+
     outputs:
       image:
         value: '${{ jobs.build.outputs.image }}'
@@ -73,13 +79,13 @@ jobs:
             type=semver,pattern={{ major }}.{{ minor }}.{{ patch }},prefix=v,priority=9999
             type=semver,pattern={{ major }}.{{ minor }},prefix=v,priority=9998
             type=semver,pattern={{ major }},prefix=v,priority=9997
-            type=sha,prefix=,priority=9996
+            type=sha,prefix=,enable=${{ inputs.tag_commits }},priority=9996
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') || github.ref_type == 'tag' }},priority=9995
             type=raw,value=edge,enable=${{ github.ref == format('refs/heads/{0}', 'develop') }},priority=9994
 
       - name: 'Set IMAGE_NAME and IMAGE_DESCRIPTION_ESCAPED variables'
         run: |
-          IMAGE_NAME="${IMAGE_TAG/:*/}"
+          IMAGE_NAME="$(echo "${IMAGE_TAG}" | sed -E 's#.*/([^:]+):.*#\1#')"
           IMAGE_DESCRIPTION_ESCAPED="$(echo "${IMAGE_DESCRIPTION}" | tr -d '",'"'")"
 
           printf 'IMAGE_NAME=%s\nIMAGE_DESCRIPTION_ESCAPED=%s\n' \
@@ -122,3 +128,89 @@ jobs:
           outputs: 'type=image,name=target,annotation-index.org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION_ESCAPED }},push=${{ github.event_name != ''pull_request'' }}'
           platforms: '${{ inputs.platforms }}'
           tags: '${{ steps.metadata.outputs.tags }}'
+
+      - name: 'Delete untagged versions'
+        if: '${{ !inputs.tag_commits }}'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const childProcess = require('child_process');
+            const util = require('util');
+
+            const execFile = util.promisify(childProcess.execFile);
+            const tagRegex = /^(latest|edge|v[0-9]+(\.[0-9]+){0,2})$/;
+
+            const getVersions = async (imageName) => {
+              var versionsRequest = github.rest.packages.getAllPackageVersionsForAPackageOwnedByTheAuthenticatedUser.endpoint({
+                package_type: 'container',
+                package_name: imageName
+              });
+
+              return await github.paginate(versionsRequest);
+            };
+
+            const getTaggedVersions = (versions) => {
+              return versions.filter(version => {
+                if (!version.metadata.container.tags) {
+                  return false;
+                }
+
+                if (version.metadata.container.tags.length == 0) {
+                  return false;
+                }
+
+                if (!version.metadata.container.tags.some(tag => tagRegex.exec(tag))) {
+                  return false;
+                }
+
+                return true;
+              });
+            };
+
+            const getDependencies = async (ownerName, imageName, versions) => {
+              const tags = versions.flatMap(version => version.metadata.container.tags)
+                .filter(tag => tagRegex.exec(tag));
+
+              let dependencies = [];
+              for (const tag of tags) {
+                const output = await execFile('docker', ['buildx', 'imagetools', 'inspect', '--raw', `ghcr.io/${ownerName}/${imageName}:${tag}`]);
+                const manifest = JSON.parse(output.stdout);
+                const tagDependencies = manifest.manifests.map(subManifest => subManifest.digest);
+
+                dependencies = dependencies.concat(tagDependencies);
+              }
+
+              return dependencies;
+            };
+
+            const getVersionIdsToRemove = (versions, dependencies, taggedVersions) => {
+              const dependentVersions = versions.filter(version => dependencies.includes(version.name));
+              const versionsToKeep = taggedVersions.concat(dependentVersions);
+              const versionIdsToKeep = versionsToKeep.map(version => version.id);
+              const versionsToRemove = versions.filter(version => !versionIdsToKeep.includes(version.id));
+
+              return versionsToRemove.map(version => version.id);
+            }
+
+            const deleteVersions = async (imageName, versionIds) => {
+              for (id of versionIds) {
+                try {
+                  await github.rest.packages.deletePackageVersionForAuthenticatedUser({
+                    package_type: 'container',
+                    package_name: imageName,
+                    package_version_id: id
+                  });
+                } catch (error) {
+                  console.log(error);
+                }
+              }
+            };
+
+            const versions = await getVersions(process.env.IMAGE_NAME);
+            const taggedVersions = getTaggedVersions(versions);
+            const dependencies = await getDependencies(process.env.GITHUB_REPOSITORY_OWNER, process.env.IMAGE_NAME, taggedVersions);
+
+            const versionIdsToRemove = getVersionIdsToRemove(versions, dependencies, taggedVersions);
+            await deleteVersions(process.env.IMAGE_NAME, versionIdsToRemove);
+        env:
+          IMAGE_NAME: '${{ env.IMAGE_NAME }}'
