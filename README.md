@@ -52,6 +52,7 @@ Builds a Dockerfile and pushes the image to ghcr.io.
 |platforms||amd64,arm64|Platforms to build image for|
 |authors|✅||Author contact information|
 |image_name||`lowercase repository name`|Image name|
+|tag_commits||false|Create tags with commit SHA|
 
 ### Outputs
 |Name|Description|
