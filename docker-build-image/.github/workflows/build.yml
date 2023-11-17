@@ -26,6 +26,5 @@ jobs:
       # context: .
       # file:
       authors: 'John Doe <john.doe@example.com>'
-      # platforms: amd64,arm64
       # image_name:
       # tag_commits: false

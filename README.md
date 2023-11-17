@@ -12,7 +12,6 @@ Builds a Dockerfile, pushes the image to ghcr.io, and deploys it to the specifie
 |-|-|-|-|
 |context||.|Path to Docker context|
 |file||`{context}/Dockerfile`|Path to Dockerfile|
-|platforms||amd64|Platforms to build image for|
 |authors|✅||Author contact information|
 |application|✅||Application name|
 
@@ -49,7 +48,6 @@ Builds a Dockerfile and pushes the image to ghcr.io.
 |-|-|-|-|
 |context||.|Path to Docker context|
 |file||`{context}/Dockerfile`|Path to Dockerfile|
-|platforms||amd64,arm64|Platforms to build image for|
 |authors|✅||Author contact information|
 |image_name||`lowercase repository name`|Image name|
 |tag_commits||false|Create tags with commit SHA|
